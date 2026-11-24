@@ -1,0 +1,31 @@
+name: 'localbike'
+version: '1.0.0'
+config-version: 2
+
+profile: 'localbike'
+
+model-paths: ["models"]
+macro-paths: ["macros"]
+test-paths: ["tests"]
+analysis-paths: ["analyses"]
+seed-paths: ["seeds"]
+snapshot-paths: ["snapshots"]
+
+target-path: "target"
+clean-targets:
+  - "target"
+  - "dbt_packages"
+
+# Trois couches, chacune dans son dataset BigQuery :
+#   <DBT_DATASET>_staging, <DBT_DATASET>_intermediate, <DBT_DATASET>_mart
+models:
+  localbike:
+    staging:
+      +schema: staging
+      +materialized: view
+    intermediate:
+      +schema: intermediate
+      +materialized: view
+    mart:
+      +schema: mart
+      +materialized: table

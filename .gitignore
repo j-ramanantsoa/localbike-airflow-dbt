@@ -1,0 +1,23 @@
+# Secrets : la clé GCP et les variables d'environnement ne sont JAMAIS versionnées
+credentials/*
+!credentials/.gitkeep
+.env
+*key*.json
+*credentials*.json
+
+# dbt
+dbt/localbike/target/
+dbt/localbike/logs/
+dbt/localbike/dbt_packages/
+.user.yml
+
+# Airflow / Python
+logs/
+__pycache__/
+*.pyc
+.venv/
+
+# IDE / OS
+.idea/
+.vscode/
+~$*

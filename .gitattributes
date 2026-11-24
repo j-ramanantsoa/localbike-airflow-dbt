@@ -1,0 +1,3 @@
+# Fin de ligne Unix pour tout ce qui tourne dans le conteneur Linux
+* text=auto eol=lf
+*.csv -text

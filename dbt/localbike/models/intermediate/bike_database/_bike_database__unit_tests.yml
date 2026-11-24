@@ -1,0 +1,55 @@
+version: 2
+
+# Tests unitaires (dbt >= 1.8) : on donne des lignes d'entrée inventées et on vérifie
+# le résultat du calcul. Ils tournent avec `dbt test` sur la couche intermediate.
+# Les modèles parents doivent déjà exister dans BigQuery (dbt lit leurs types de colonnes) :
+# c'est le cas puisque le DAG lance `dbt run` avant `dbt test`.
+
+unit_tests:
+
+  - name: montants_ligne_de_commande
+    description: "Brut = quantité × prix ; remise = brut × taux ; net = brut − remise."
+    model: int_bike_database__order_items_enriched
+    given:
+      - input: ref('stg_bike_database__order_items')
+        rows:
+          - {order_item_id: '1-1', order_id: 1, item_number: 1, product_id: 10, quantity: 2, unit_price: 100, discount_rate: 0.1}
+          - {order_item_id: '1-2', order_id: 1, item_number: 2, product_id: 10, quantity: 1, unit_price: 599.99, discount_rate: 0.2}
+      - input: ref('stg_bike_database__orders')
+        rows:
+          - {order_id: 1, order_date: '2018-01-01', order_status: 'completed', customer_id: 5, store_id: 1, staff_id: 2}
+      - input: ref('stg_bike_database__products')
+        rows:
+          - {product_id: 10, product_name: 'Trek 820', brand_id: 9, category_id: 6, model_year: 2016}
+      - input: ref('stg_bike_database__brands')
+        rows:
+          - {brand_id: 9, brand_name: 'Trek'}
+      - input: ref('stg_bike_database__categories')
+        rows:
+          - {category_id: 6, category_name: 'Mountain Bikes'}
+    expect:
+      rows:
+        - {order_item_id: '1-1', brand_name: 'Trek', category_name: 'Mountain Bikes', gross_amount: 200, discount_amount: 20, net_amount: 180}
+        - {order_item_id: '1-2', brand_name: 'Trek', category_name: 'Mountain Bikes', gross_amount: 599.99, discount_amount: 120, net_amount: 479.99}
+
+  - name: totaux_et_retard_par_commande
+    description: >
+      Commande 1 : 2 lignes, expédiée après la date promise -> en retard.
+      Commande 2 : pas encore expédiée -> délai et retard NULL.
+      Commande 3 : sans ligne de commande -> montants à 0, expédiée à temps.
+    model: int_bike_database__orders_aggregated
+    given:
+      - input: ref('stg_bike_database__orders')
+        rows:
+          - {order_id: 1, order_date: '2018-01-01', required_date: '2018-01-03', shipped_date: '2018-01-05'}
+          - {order_id: 2, order_date: '2018-01-01', required_date: '2018-01-03', shipped_date: null}
+          - {order_id: 3, order_date: '2018-01-01', required_date: '2018-01-03', shipped_date: '2018-01-02'}
+      - input: ref('int_bike_database__order_items_enriched')
+        rows:
+          - {order_id: 1, quantity: 1, gross_amount: 100, discount_amount: 10, net_amount: 90}
+          - {order_id: 1, quantity: 2, gross_amount: 200, discount_amount: 0, net_amount: 200}
+    expect:
+      rows:
+        - {order_id: 1, days_to_ship: 4, is_shipped_late: true, item_count: 2, total_quantity: 3, gross_amount: 300, net_amount: 290}
+        - {order_id: 2, days_to_ship: null, is_shipped_late: null, item_count: 0, total_quantity: 0, gross_amount: 0, net_amount: 0}
+        - {order_id: 3, days_to_ship: 1, is_shipped_late: false, item_count: 0, total_quantity: 0, gross_amount: 0, net_amount: 0}

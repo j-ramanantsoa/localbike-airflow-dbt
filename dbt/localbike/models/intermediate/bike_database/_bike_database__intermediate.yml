@@ -1,0 +1,32 @@
+version: 2
+
+models:
+  - name: int_bike_database__order_items_enriched
+    description: "Une ligne par produit vendu, avec la commande, le produit, la marque, la catégorie et les montants."
+    columns:
+      - name: order_item_id
+        tests: [unique, not_null]
+      - name: order_date
+        description: "Doit toujours être rempli : sinon une ligne n'a pas trouvé sa commande."
+        tests: [not_null]
+      - name: product_name
+        description: "Doit toujours être rempli : sinon une ligne n'a pas trouvé son produit."
+        tests: [not_null]
+      - name: gross_amount
+        description: "quantity × unit_price"
+        tests: [not_null]
+      - name: net_amount
+        description: "quantity × unit_price × (1 − discount_rate)"
+        tests: [not_null]
+
+  - name: int_bike_database__orders_aggregated
+    description: "Une ligne par commande, avec ses montants totaux et ses indicateurs de livraison."
+    columns:
+      - name: order_id
+        tests: [unique, not_null]
+      - name: days_to_ship
+        description: "Jours entre la commande et l'expédition. NULL si pas encore expédiée."
+      - name: is_shipped_late
+        description: "Vrai si expédiée après la date promise (required_date). NULL si pas encore expédiée."
+      - name: net_amount
+        tests: [not_null]

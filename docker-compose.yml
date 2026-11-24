@@ -1,0 +1,17 @@
+# Équivalent du `docker run` décrit dans le README, en une commande :
+#   docker compose up -d --build
+services:
+  airflow:
+    build: .
+    image: localbike-airflow-dbt
+    container_name: localbike-airflow
+    env_file: .env
+    environment:
+      DBT_PROFILES_DIR: /opt/airflow/dbt/localbike/profiles
+    ports:
+      - "8080:8080"   # Airflow
+      - "8081:8081"   # Documentation dbt
+    volumes:
+      - ./dags:/opt/airflow/dags
+      - ./dbt:/opt/airflow/dbt
+      - ./credentials:/opt/airflow/credentials:ro

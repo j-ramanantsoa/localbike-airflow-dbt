@@ -1,0 +1,151 @@
+version: 2
+
+models:
+  - name: stg_bike_database__brands
+    description: "Une ligne par marque."
+    columns:
+      - name: brand_id
+        tests: [unique, not_null]
+      - name: brand_name
+        tests: [unique, not_null]
+
+  - name: stg_bike_database__categories
+    description: "Une ligne par catégorie de vélo."
+    columns:
+      - name: category_id
+        tests: [unique, not_null]
+      - name: category_name
+        tests: [unique, not_null]
+
+  - name: stg_bike_database__customers
+    description: "Une ligne par client. Le texte 'NULL' du téléphone devient un vrai NULL."
+    columns:
+      - name: customer_id
+        tests: [unique, not_null]
+      - name: email
+        tests: [unique, not_null]
+      - name: state
+        tests:
+          - accepted_values:
+              values: ['CA', 'NY', 'TX']
+
+  - name: stg_bike_database__orders
+    description: "Une ligne par commande. Le statut numérique est traduit en libellé."
+    columns:
+      - name: order_id
+        tests: [unique, not_null]
+      - name: customer_id
+        tests:
+          - not_null
+          - relationships:
+              to: ref('stg_bike_database__customers')
+              field: customer_id
+      - name: store_id
+        tests:
+          - not_null
+          - relationships:
+              to: ref('stg_bike_database__stores')
+              field: store_id
+      - name: staff_id
+        tests:
+          - not_null
+          - relationships:
+              to: ref('stg_bike_database__staffs')
+              field: staff_id
+      - name: order_status
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['pending', 'processing', 'rejected', 'completed']
+      - name: order_date
+        tests: [not_null]
+      - name: required_date
+        tests: [not_null]
+
+  - name: stg_bike_database__order_items
+    description: "Une ligne par produit dans une commande."
+    columns:
+      - name: order_item_id
+        tests: [unique, not_null]
+      - name: order_id
+        tests:
+          - not_null
+          - relationships:
+              to: ref('stg_bike_database__orders')
+              field: order_id
+      - name: product_id
+        tests:
+          - not_null
+          - relationships:
+              to: ref('stg_bike_database__products')
+              field: product_id
+      - name: quantity
+        tests: [not_null]
+      - name: unit_price
+        tests: [not_null]
+      - name: discount_rate
+        tests: [not_null]
+
+  - name: stg_bike_database__products
+    description: "Une ligne par produit du catalogue."
+    columns:
+      - name: product_id
+        tests: [unique, not_null]
+      - name: brand_id
+        tests:
+          - not_null
+          - relationships:
+              to: ref('stg_bike_database__brands')
+              field: brand_id
+      - name: category_id
+        tests:
+          - not_null
+          - relationships:
+              to: ref('stg_bike_database__categories')
+              field: category_id
+      - name: list_price
+        tests: [not_null]
+
+  - name: stg_bike_database__staffs
+    description: "Une ligne par membre du personnel."
+    columns:
+      - name: staff_id
+        tests: [unique, not_null]
+      - name: store_id
+        tests:
+          - not_null
+          - relationships:
+              to: ref('stg_bike_database__stores')
+              field: store_id
+      - name: manager_id
+        description: "NULL pour la personne en haut de la hiérarchie."
+        tests:
+          - relationships:
+              to: ref('stg_bike_database__staffs')
+              field: staff_id
+
+  - name: stg_bike_database__stocks
+    description: "Une ligne par produit et par magasin."
+    columns:
+      - name: stock_id
+        tests: [unique, not_null]
+      - name: store_id
+        tests:
+          - not_null
+          - relationships:
+              to: ref('stg_bike_database__stores')
+              field: store_id
+      - name: product_id
+        tests:
+          - not_null
+          - relationships:
+              to: ref('stg_bike_database__products')
+              field: product_id
+
+  - name: stg_bike_database__stores
+    description: "Une ligne par magasin."
+    columns:
+      - name: store_id
+        tests: [unique, not_null]
+      - name: store_name
+        tests: [unique, not_null]

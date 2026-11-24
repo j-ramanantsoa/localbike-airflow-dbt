@@ -1,0 +1,72 @@
+version: 2
+
+# Tests sur les données brutes : lancés AVANT le staging pour vérifier le chargement des CSV.
+#   dbt test --select source:bike_database
+sources:
+  - name: bike_database
+    description: "Données brutes de Local Bike, chargées telles quelles depuis les CSV (Mission 0)."
+    schema: "{{ env_var('BIKE_SOURCE_DATASET', 'bike_database') }}"
+    tables:
+      - name: brands
+        description: "Marques de vélos."
+        columns:
+          - name: brand_id
+            tests: [unique, not_null]
+
+      - name: categories
+        description: "Catégories de vélos."
+        columns:
+          - name: category_id
+            tests: [unique, not_null]
+
+      - name: customers
+        description: "Clients."
+        columns:
+          - name: customer_id
+            tests: [unique, not_null]
+
+      - name: orders
+        description: "Commandes (en-tête)."
+        columns:
+          - name: order_id
+            tests: [unique, not_null]
+          - name: order_status
+            tests: [not_null]
+          - name: order_date
+            tests: [not_null]
+
+      - name: order_items
+        description: "Lignes de commande : un produit dans une commande."
+        columns:
+          - name: order_id
+            tests: [not_null]
+          - name: item_id
+            tests: [not_null]
+          - name: product_id
+            tests: [not_null]
+
+      - name: products
+        description: "Catalogue produits."
+        columns:
+          - name: product_id
+            tests: [unique, not_null]
+
+      - name: staffs
+        description: "Vendeurs et managers."
+        columns:
+          - name: staff_id
+            tests: [unique, not_null]
+
+      - name: stocks
+        description: "Stock d'un produit dans un magasin."
+        columns:
+          - name: store_id
+            tests: [not_null]
+          - name: product_id
+            tests: [not_null]
+
+      - name: stores
+        description: "Magasins."
+        columns:
+          - name: store_id
+            tests: [unique, not_null]

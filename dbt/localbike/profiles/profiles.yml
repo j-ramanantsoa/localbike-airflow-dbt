@@ -1,0 +1,16 @@
+# Connexion à BigQuery. Aucun secret ici : les valeurs viennent des variables
+# d'environnement (.env) et la clé est montée dans le conteneur (credentials/).
+localbike:
+  target: dev
+  outputs:
+    dev:
+      type: bigquery
+      method: service-account
+      project: "{{ env_var('GCP_PROJECT_ID') }}"
+      dataset: "{{ env_var('DBT_DATASET', 'localbike') }}"
+      keyfile: "{{ env_var('GCP_KEYFILE_PATH', '/opt/airflow/credentials/gcp-key.json') }}"
+      location: "{{ env_var('GCP_LOCATION', 'US') }}"
+      threads: 4
+      job_execution_timeout_seconds: 300
+      job_retries: 1
+      priority: interactive

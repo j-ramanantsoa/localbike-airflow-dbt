@@ -1,0 +1,102 @@
+version: 2
+
+models:
+  - name: fct_sales
+    description: "Une ligne par produit vendu. Base des analyses de chiffre d'affaires par magasin, produit, vendeur."
+    columns:
+      - name: sale_id
+        tests: [unique, not_null]
+      - name: order_id
+        tests:
+          - relationships:
+              to: ref('fct_orders')
+              field: order_id
+      - name: customer_id
+        tests:
+          - relationships:
+              to: ref('dim_customers')
+              field: customer_id
+      - name: store_id
+        tests:
+          - relationships:
+              to: ref('dim_stores')
+              field: store_id
+      - name: staff_id
+        tests:
+          - relationships:
+              to: ref('dim_staffs')
+              field: staff_id
+      - name: product_id
+        tests:
+          - relationships:
+              to: ref('dim_products')
+              field: product_id
+      - name: net_amount
+        description: "Chiffre d'affaires après remise."
+        tests: [not_null]
+
+  - name: fct_orders
+    description: "Une ligne par commande : montants, statut et suivi de livraison."
+    columns:
+      - name: order_id
+        tests: [unique, not_null]
+      - name: order_status
+        tests:
+          - accepted_values:
+              values: ['pending', 'processing', 'rejected', 'completed']
+      - name: customer_id
+        tests:
+          - relationships:
+              to: ref('dim_customers')
+              field: customer_id
+      - name: store_id
+        tests:
+          - relationships:
+              to: ref('dim_stores')
+              field: store_id
+      - name: is_shipped_late
+        description: "Vrai si expédiée après la date promise. NULL si pas encore expédiée."
+
+  - name: fct_stocks
+    description: "Une ligne par produit et par magasin : quantité et valeur du stock."
+    columns:
+      - name: stock_id
+        tests: [unique, not_null]
+      - name: store_id
+        tests:
+          - relationships:
+              to: ref('dim_stores')
+              field: store_id
+      - name: product_id
+        tests:
+          - relationships:
+              to: ref('dim_products')
+              field: product_id
+
+  - name: dim_customers
+    description: "Une ligne par client, avec son historique d'achat (CA des commandes terminées)."
+    columns:
+      - name: customer_id
+        tests: [unique, not_null]
+
+  - name: dim_products
+    description: "Une ligne par produit, avec marque et catégorie."
+    columns:
+      - name: product_id
+        tests: [unique, not_null]
+      - name: brand_name
+        tests: [not_null]
+      - name: category_name
+        tests: [not_null]
+
+  - name: dim_stores
+    description: "Une ligne par magasin."
+    columns:
+      - name: store_id
+        tests: [unique, not_null]
+
+  - name: dim_staffs
+    description: "Une ligne par membre du personnel, avec son manager."
+    columns:
+      - name: staff_id
+        tests: [unique, not_null]
