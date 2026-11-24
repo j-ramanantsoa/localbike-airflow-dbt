@@ -1,0 +1,72 @@
+# Intégration continue : à chaque pull request vers main, on vérifie que le projet
+# fonctionne de bout en bout avant de merger.
+#   1. les DAG Airflow sont du Python valide
+#   2. `dbt build` : tests des sources, run + tests de chaque modèle, tests unitaires
+#
+# Les modèles sont construits dans des datasets dédiés (localbike_ci_staging,
+# localbike_ci_intermediate, localbike_ci_mart) : la CI ne touche jamais aux tables
+# utilisées par Airflow. Les données brutes sont lues dans bike_database.
+#
+# La clé du compte de service vient du secret GitHub GCP_SA_KEY : elle n'est jamais dans le dépôt.
+
+name: dbt CI
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: dbt-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  dbt-build:
+    name: DAG + dbt build
+    runs-on: ubuntu-latest
+
+    # Lues par dbt/localbike/profiles/profiles.yml
+    env:
+      GCP_PROJECT_ID: databird-513513
+      GCP_LOCATION: US
+      DBT_DATASET: localbike_ci
+      GCP_KEYFILE_PATH: ${{ github.workspace }}/../keyfile.json
+
+    steps:
+      - name: Récupérer le code
+        uses: actions/checkout@v4
+
+      - name: Installer Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements-dbt.txt
+
+      - name: Vérifier la syntaxe des DAG
+        run: python -m py_compile dags/*.py
+
+      - name: Installer dbt
+        run: pip install -r requirements-dbt.txt
+
+      - name: Écrire la clé du compte de service
+        env:
+          GCP_SA_KEY: ${{ secrets.GCP_SA_KEY }}
+        run: |
+          if [ -z "$GCP_SA_KEY" ]; then
+            echo "Le secret GCP_SA_KEY est absent : Settings > Secrets and variables > Actions." >&2
+            exit 1
+          fi
+          printf '%s' "$GCP_SA_KEY" > "$GCP_KEYFILE_PATH"
+
+      - name: Vérifier la connexion à BigQuery
+        working-directory: dbt/localbike
+        run: dbt debug --profiles-dir profiles
+
+      - name: Construire et tester (dbt build)
+        working-directory: dbt/localbike
+        run: dbt build --profiles-dir profiles
+
+      - name: Supprimer la clé
+        if: always()
+        run: rm -f "$GCP_KEYFILE_PATH"
