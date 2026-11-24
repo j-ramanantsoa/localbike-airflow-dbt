@@ -11,13 +11,34 @@ Guide d'onboarding pour une équipe Data / Produit, construit sur le projet Loca
 |---|---|---|
 | **Docker et Docker Compose** installés | Tout le monde travaille dans le même environnement (mêmes versions d'Airflow, de dbt, de Python). Fini le « ça marche sur ma machine ». | `docker --version`, `docker compose version` |
 | **Accès à un cloud data warehouse** (BigQuery) | Stocke les données et exécute les transformations SQL. | Projet GCP créé, facturation activée |
-| **Compte de service + clé JSON** | dbt se connecte à BigQuery sans compte personnel. Rôles minimum : *BigQuery Data Editor* et *BigQuery Job User*. | `dbt debug` répond « All checks passed » |
-| **Variables d'environnement sécurisées** (`.env`) | ID du projet, région, chemin de la clé : rien de sensible dans le code. Le `.env` et la clé sont dans le `.gitignore`. | `git status` ne les montre jamais |
-| **Dataset vide dans le DW** (`bike_database`) | Accueille les données brutes. Créé dans la même région que le reste (US ou EU) : BigQuery ne joint pas des datasets de régions différentes. | Visible dans la console BigQuery |
+| **Compte de service + clé JSON** | dbt se connecte à BigQuery sans compte personnel. Rôles minimum : *BigQuery Data Editor* et *BigQuery Job User*. La clé est déposée dans `credentials/gcp-key.json`. | `dbt debug` affiche `Connection test: OK` |
+| **Variables d'environnement sécurisées** (`.env`) | ID du projet, région, dataset source : rien de sensible dans le code. Le `.env` et la clé sont dans le `.gitignore`. | `git status --ignored` les liste comme ignorés |
+| **Dataset vide dans le DW** | Accueille les données brutes. Créé dans la même région que le reste (US ou EU) : BigQuery ne joint pas des datasets de régions différentes. Son nom est paramétrable (`BIKE_SOURCE_DATASET`, défaut `bike_database`). | Visible dans la console BigQuery |
 | **Projet dbt initialisé** (`dbt init`) | Contient `dbt_project.yml` (structure) et `profiles.yml` (connexion). | `dbt debug` |
 | **Orchestrateur installé** (Airflow) | Déclenche les étapes dans l'ordre et à heure fixe. | Interface sur `http://localhost:8080` |
 | **Données de test** (CSV ou requêtes SQL) | Permettent de valider le pipeline de bout en bout avant de brancher les vraies sources. | 9 CSV dans `data/localbike_dataset/` |
 | **Dépôt Git** | Chaque modification passe par une branche et une pull request : historique, relecture, retour arrière possible. | `git remote -v` |
+| **Secret CI** (`GCP_SA_KEY`) | La CI GitHub Actions a besoin de la clé pour lancer `dbt build`. Elle est stockée dans *Settings → Secrets and variables → Actions*, jamais dans le dépôt. | Le workflow `dbt CI` passe au vert sur une PR |
+
+### Configuration du projet Local Bike (`.env`)
+
+```env
+GCP_PROJECT_ID=databird-513513
+GCP_LOCATION=US
+BIKE_SOURCE_DATASET=local_bike_airflow   # les 9 tables brutes
+DBT_DATASET=localbike                    # préfixe : localbike_staging / _intermediate / _mart
+```
+
+### Démarrage en 4 commandes
+
+```powershell
+Copy-Item .env.example .env                 # puis remplir les valeurs
+# déposer la clé JSON dans credentials/gcp-key.json
+docker compose up -d --build                # Airflow : http://localhost:8080 — doc dbt : http://localhost:8081
+docker exec localbike-airflow bash -c "cd /opt/airflow/dbt/localbike && dbt debug && dbt build"
+```
+
+Le mot de passe de l'utilisateur `admin` d'Airflow : `docker exec localbike-airflow cat /opt/airflow/standalone_admin_password.txt`.
 
 ---
 
@@ -25,7 +46,7 @@ Guide d'onboarding pour une équipe Data / Produit, construit sur le projet Loca
 
 | ✅ | Étape | Description | Dans le projet Local Bike |
 |---|---|---|---|
-| ☐ | 🔹 **Ingestion** | Importer les fichiers CSV ou connecter les APIs externes (Airbyte, `bq load`, interface BigQuery). Les données arrivent **brutes**, sans transformation. | 9 tables dans `bike_database` |
+| ☐ | 🔹 **Ingestion** | Importer les fichiers CSV ou connecter les APIs externes (Airbyte, `bq load`, interface BigQuery). Les données arrivent **brutes**, sans transformation. | 9 tables dans `local_bike_airflow` |
 | ☐ | 🔹 **Staging (dbt)** | Normaliser chaque source : renommer, typer, nettoyer (ex. le texte `"NULL"` devient un vrai `NULL`). Un modèle par table source, aucune jointure. | `stg_bike_database__*.sql` (vues) |
 | ☐ | 🔹 **Tests (`dbt test`)** | Contrôler la qualité dès les sources brutes puis à chaque couche : `unique`, `not_null`, `relationships`, `accepted_values`, tests métier en SQL, et tests unitaires sur les calculs. | 118 tests, dont « montant net ≥ 0 », « stock ≥ 0 » |
 | ☐ | 🔹 **Intermediate** | Calculs intermédiaires réutilisables : jointures, enrichissements, agrégations. | `int_bike_database__order_items_enriched`, `int_bike_database__orders_aggregated` |
@@ -33,6 +54,7 @@ Guide d'onboarding pour une équipe Data / Produit, construit sur le projet Loca
 | ☐ | 🔹 **Documentation** | `dbt docs generate` produit un site (descriptions, colonnes, tests, lignage). On l'expose avec un serveur HTTP. | `http://localhost:8081` |
 | ☐ | 🔹 **Orchestration** | Un DAG Airflow enchaîne `run` et `test` couche par couche. Si un test échoue, la suite ne tourne pas. | `mission6_localbike_pipeline` |
 | ☐ | 🔹 **Scheduling / Monitoring** | Planifier l'exécution (ex. `@daily`) et suivre l'état des tâches dans Airflow (vue Grid, logs, relances automatiques). | `schedule="@daily"`, `retries=1` |
+| ☐ | 🔹 **Intégration continue** | À chaque pull request, GitHub Actions vérifie la syntaxe des DAG puis lance `dbt build` dans des datasets dédiés : on ne merge que du code qui passe tous les tests, sans toucher aux tables de production. | `.github/workflows/dbt_ci.yml` → datasets `localbike_ci_*` |
 
 💡 Chaque étape est versionnée dans Git, testable seule (`dbt run --select <couche>`) et déclenchable seule dans Airflow (un DAG par mission).
 
@@ -41,6 +63,18 @@ Guide d'onboarding pour une équipe Data / Produit, construit sur le projet Loca
 ```
 test sources → run staging → test staging → run intermediate → test intermediate → run mart → test mart → docs generate
 ```
+
+Résultat sur Local Bike : `dbt build` → **136 étapes, 0 erreur** (11 vues, 7 tables, 116 tests de données, 2 tests unitaires).
+
+### Pièges rencontrés (et solutions)
+
+| Symptôme | Cause | Solution |
+|---|---|---|
+| « La création de clés de compte de service est désactivée » | Règle d'organisation GCP `iam.disableServiceAccountKeyCreation`, active par défaut sur les nouveaux comptes | Utiliser un projet qui l'autorise, la désactiver au niveau du projet (rôle *Organization Policy Administrator*), ou se passer de clé : `gcloud auth application-default login` + `method: oauth` dans `profiles.yml` |
+| `Dataset ...:bike_database was not found in location US` en CI | La CI ne lit pas le `.env` : sans `BIKE_SOURCE_DATASET`, dbt prend le nom par défaut | Déclarer `BIKE_SOURCE_DATASET` dans le bloc `env:` du workflow |
+| `dbt debug` : « Error from git --help » | Git n'est pas installé dans l'image | Sans impact tant que le projet n'utilise pas de packages dbt |
+| Deux exécutions au premier lancement d'un DAG | Activer un DAG planifié lance l'intervalle le plus récent, en plus du déclenchement manuel | Normal avec `catchup=False` ; une seule exécution en rattrapage |
+| Build Docker interrompu | Mémoire insuffisante (Docker Desktop + navigateur + IDE) | Fermer les applications lourdes ou augmenter la mémoire allouée à WSL 2 |
 
 ---
 
