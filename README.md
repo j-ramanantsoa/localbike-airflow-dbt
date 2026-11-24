@@ -27,8 +27,8 @@ bike_database                    9 tables brutes
         ▼
 <DBT_DATASET>_mart               fct_* / dim_*          tables mart "operations"
         │
-        ▼
-dbt docs  ->  http://localhost:8081
+        ├──►  dbt docs  ->  http://localhost:8081
+        └──►  Metabase  ->  http://localhost:3000   tableaux de bord sur le mart
 
 Airflow (http://localhost:8080) déclenche chaque étape : test des sources brutes,
 puis dbt run et dbt test, couche par couche.
@@ -161,6 +161,27 @@ Ce sont deux services indépendants : on peut consulter la doc même si Airflow 
 
 Le serveur de doc est lancé au démarrage du conteneur (dernière ligne du `Dockerfile`) et
 sert le dossier `target/`, que `dbt docs generate` met à jour.
+
+### 5. Tableaux de bord avec Metabase
+
+`docker compose up -d` lance un second conteneur, `localbike-metabase` (image officielle
+`metabase/metabase`, port **3000**). Ses réglages, questions et dashboards sont stockés dans le
+volume nommé `metabase-data` : ils survivent à un `docker compose down` (mais pas à un `down -v`).
+
+Première configuration, sur <http://localhost:3000> :
+
+1. Créer le compte administrateur.
+2. *Ajouter une base de données* → **BigQuery** : ID du projet GCP, puis importer la clé
+   `credentials/gcp-key.json`. Dans *Datasets*, choisir *Only these…* → `localbike_mart`.
+3. Créer les questions sur `fct_sales`, `fct_orders` et les dimensions, puis les regrouper dans
+   un dashboard.
+
+Dashboard du projet, **Local Bike — Ventes** (commandes terminées uniquement) : chiffre
+d'affaires total, nombre de commandes, délai moyen d'expédition, chiffre d'affaires par mois,
+par magasin, par catégorie et top 10 des produits.
+
+Metabase lit les tables construites par dbt : quand le DAG quotidien a tourné, les dashboards
+affichent les données à jour sans autre action.
 
 ## Tests
 
