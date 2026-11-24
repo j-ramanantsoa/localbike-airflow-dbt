@@ -15,3 +15,18 @@ services:
       - ./dags:/opt/airflow/dags
       - ./dbt:/opt/airflow/dbt
       - ./credentials:/opt/airflow/credentials:ro
+
+  # Outil de tableaux de bord, branché sur les tables du mart dans BigQuery
+  metabase:
+    image: metabase/metabase:v0.64.9    # image officielle, rien à construire
+    container_name: localbike-metabase
+    environment:
+      MB_DB_FILE: /metabase-data/metabase.db   # base interne de Metabase (questions, dashboards)
+      JAVA_OPTS: "-Xmx1g"                      # limite la mémoire utilisée
+    ports:
+      - "3000:3000"   # Metabase
+    volumes:
+      - metabase-data:/metabase-data           # volume nommé : les dashboards survivent à un `down`
+
+volumes:
+  metabase-data:
