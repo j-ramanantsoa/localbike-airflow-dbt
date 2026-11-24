@@ -191,6 +191,21 @@ dbt build --profiles-dir profiles                                       # run + 
 Les tests sont lancés avec `--indirect-selection cautious` : quand on teste une partie des
 modèles, seuls les tests dont **tous** les modèles sont sélectionnés tournent.
 
+## Intégration continue (GitHub Actions)
+
+À chaque pull request vers `main`, `.github/workflows/dbt_ci.yml` :
+
+1. vérifie que les DAG sont du Python valide ;
+2. lance `dbt debug` puis `dbt build` : tests des sources, run + tests de chaque modèle, tests unitaires.
+
+Les modèles sont construits dans des datasets à part (`localbike_ci_staging`, `localbike_ci_intermediate`,
+`localbike_ci_mart`) pour ne jamais toucher aux tables d'Airflow. Une PR dont la CI est rouge ne doit pas être mergée.
+
+Prérequis : le secret `GCP_SA_KEY` (contenu complet de la clé JSON) dans
+*Settings → Secrets and variables → Actions*.
+
+Le workflow peut aussi être lancé à la main depuis l'onglet *Actions* (*Run workflow*).
+
 ## Sécurité
 
 La clé JSON (`credentials/`) et le `.env` sont dans le `.gitignore` et ne doivent jamais être poussés.
