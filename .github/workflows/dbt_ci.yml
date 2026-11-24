@@ -5,7 +5,7 @@
 #
 # Les modèles sont construits dans des datasets dédiés (localbike_ci_staging,
 # localbike_ci_intermediate, localbike_ci_mart) : la CI ne touche jamais aux tables
-# utilisées par Airflow. Les données brutes sont lues dans bike_database.
+# utilisées par Airflow. Les données brutes sont lues dans local_bike_airflow.
 #
 # La clé du compte de service vient du secret GitHub GCP_SA_KEY : elle n'est jamais dans le dépôt.
 
@@ -29,6 +29,8 @@ jobs:
     env:
       GCP_PROJECT_ID: databird-513513
       GCP_LOCATION: US
+      # Dataset des 9 tables CSV brutes (défaut du projet dbt : bike_database)
+      BIKE_SOURCE_DATASET: local_bike_airflow
       DBT_DATASET: localbike_ci
       GCP_KEYFILE_PATH: ${{ github.workspace }}/../keyfile.json
 
