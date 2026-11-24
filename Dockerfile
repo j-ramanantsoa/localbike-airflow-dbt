@@ -14,7 +14,7 @@ ENV PATH="${PATH}:/home/airflow/dbt_venv/bin" \
 # 8080 : interface Airflow / 8081 : documentation dbt
 EXPOSE 8080 8081
 
-# Au démarrage :
-#  1. un serveur HTTP sert la doc dbt (dossier target/) sur le port 8081, en arrière-plan
-#  2. Airflow démarre en mode standalone (webserver + scheduler) sur le port 8080
-CMD ["bash", "-c", "mkdir -p /opt/airflow/dbt/localbike/target && (python3 -m http.server 8081 --bind 0.0.0.0 --directory /opt/airflow/dbt/localbike/target &) && exec airflow standalone"]
+# Au démarrage (après suppression du PID du webserver laissé par un arrêt précédent,
+# sinon Airflow croit le webserver déjà lancé et le port 8080 reste fermé) :
+#  1. un serveur HTTP sert la doc dbt (target/) sur le port 8081, en arrière-plan ; 2. Airflow standalone sur 8080
+CMD ["bash", "-c", "rm -f /opt/airflow/airflow-webserver.pid && mkdir -p /opt/airflow/dbt/localbike/target && (python3 -m http.server 8081 --bind 0.0.0.0 --directory /opt/airflow/dbt/localbike/target &) && exec airflow standalone"]
